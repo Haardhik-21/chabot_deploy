@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+faiss-cpu
+sentence-transformers
+PyMuPDF
+numpy
+google-generativeai
+scikit-learn
