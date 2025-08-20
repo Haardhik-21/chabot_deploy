@@ -2,9 +2,14 @@ fastapi
 uvicorn
 pydantic
 python-multipart
-faiss-cpu
+qdrant-client
 sentence-transformers
 PyMuPDF
 numpy
 google-generativeai
 scikit-learn
+python-dotenv
+pdf2image
+pytesseract
+httpx
+trafilatura

@@ -1,25 +1,29 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from typing import List
-import shutil, os, json
+from typing import List, Dict, Any
+import os
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
 
-from models import QuestionRequest
-from ask import answer_question_stream, clear_conversation_context
+# Local imports
+from models import QuestionRequest, PDFUploadResponse
+from qa_core import answer_question_stream
+from context import clear_conversation_context
 from pdf_parser import extract_text_from_pdf
 from chunker import chunk_text
-from embedding import embed_chunks
-from vector_store import (
-    save_chunks_to_store, load_all_uploaded_chunks, delete_chunks_for_file,
-    get_uploaded_files, clear_all_chunks, store_embeddings
+from vector_core import (
+    save_chunks_to_store, delete_chunks_for_file,
+    clear_all_chunks, load_all_uploaded_chunks
 )
-from utils import is_healthcare_text
-from gemini_client import check_healthcare_relevance
+from config import Config
+from file_utils import save_uploaded_file, cleanup_file, clear_directory
+from urllib.parse import unquote
+from scraper import scrape_to_chunks
+from vector_core import save_chunks_to_web_store, list_web_sources, delete_web_source
 
-UPLOAD_DIR = "uploaded_files"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Initialize directories
+Config.init_dirs()
 
 app = FastAPI()
 app.add_middleware(
@@ -29,158 +33,198 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/upload/")
+def process_pdf(file: UploadFile) -> Dict[str, Any]:
+    """Process a single PDF file and return chunks or error."""
+    if not file.filename.lower().endswith('.pdf'):
+        return {"error": "Only PDF files are supported"}
+
+    path = Config.UPLOAD_DIR / file.filename
+    try:
+        # Save uploaded file
+        save_uploaded_file(file, Config.UPLOAD_DIR)
+
+        # Extract text (may be empty for scanned PDFs; chunker has OCR fallback)
+        text = ""
+        try:
+            text = extract_text_from_pdf(str(path)) or ""
+        except Exception as e:
+            # If PDF text extraction fails (e.g., Pixmap/get_rect issues), proceed to OCR fallback
+            print(f"[upload] extract_text_from_pdf failed: {e}. Falling back to OCR in chunker.")
+
+        # Chunk (chunker will OCR if text is empty and file is a PDF), and embed inside chunker
+        chunks = chunk_text(text, str(path))
+        if not chunks:
+            return {"error": "No valid chunks extracted"}
+
+        return {"chunks": chunks, "filename": file.filename}
+
+    except Exception as e:
+        return {"error": f"Error processing file: {str(e)}"}
+    finally:
+        if path.exists() and "error" in locals():
+            cleanup_file(path)
+
+@app.post("/upload/", response_model=PDFUploadResponse)
 async def upload_files(files: List[UploadFile] = File(...)):
-    # Check current uploaded files
-    existing_files = get_uploaded_files()
-    total_files_after_upload = len(existing_files) + len(files)
-    
-    if total_files_after_upload > 3:
+    # Use files present on disk as the source of truth for the upload limit
+    existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*.pdf")}
+    if (total := len(existing_on_disk) + len(files)) > Config.MAX_FILES:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Maximum 3 files allowed. You currently have {len(existing_files)} files. You can upload {3 - len(existing_files)} more files."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Maximum {Config.MAX_FILES} files allowed. "
+                f"You can upload {Config.MAX_FILES - len(existing_on_disk)} more."
+            )
         )
 
+    results = {"healthcare_files": [], "rejected_files": []}
     all_chunks = []
-    healthcare_files = []
-    rejected_files = []
-    skipped_files = []
-    
+
     for file in files:
-        if not file.filename.lower().endswith('.pdf'):
-            rejected_files.append({"filename": file.filename, "reason": "Only PDF files are supported"})
-            continue
-        
-        # Check if file already exists
-        if file.filename in existing_files:
-            skipped_files.append(file.filename)
-            print(f"[main] Skipped {file.filename} (already uploaded)")
+        if file.filename in existing_on_disk:
             continue
             
-        path = os.path.join(UPLOAD_DIR, file.filename)
-        
-        # Save file
-        with open(path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+        if result := process_pdf(file):
+            if "error" in result:
+                results["rejected_files"].append({
+                    "filename": file.filename, 
+                    "reason": result["error"]
+                })
+            else:
+                all_chunks.extend(result["chunks"])
+                results["healthcare_files"].append(file.filename)
 
-        # Extract text
-        text = extract_text_from_pdf(path)
-        if not text.strip():
-            rejected_files.append({"filename": file.filename, "reason": "Could not extract text from PDF"})
-            os.remove(path)  # Remove empty file
-            continue
+    if all_chunks:
+        save_chunks_to_store(all_chunks)
 
-        # Check healthcare relevance with enhanced validation
-        if not is_healthcare_text(text) and not check_healthcare_relevance(text):
-            print(f"[main] Rejected {file.filename} (non-healthcare content)")
-            rejected_files.append({"filename": file.filename, "reason": "Content is not healthcare-related"})
-            os.remove(path)  # Remove non-healthcare file
-            continue
-
-        # Process healthcare file
-        chunks = chunk_text(text, file.filename)
-        chunks = embed_chunks(chunks)
-        all_chunks.extend(chunks)
-        healthcare_files.append(file.filename)
-        print(f"[main] Successfully processed {file.filename} ({len(chunks)} chunks)")
-
-    if not all_chunks:
-        error_msg = "No valid healthcare documents were uploaded. "
-        if rejected_files:
-            reasons = [f"{r['filename']}: {r['reason']}" for r in rejected_files]
-            error_msg += "Issues found: " + "; ".join(reasons)
-        raise HTTPException(status_code=400, detail=error_msg)
-
-    # Store embeddings
-    store_embeddings(all_chunks)
-    
-    # Build response message
-    response_parts = []
-    if healthcare_files:
-        response_parts.append(f"Successfully uploaded {len(healthcare_files)} healthcare document(s)")
-    if skipped_files:
-        response_parts.append(f"{len(skipped_files)} file(s) already existed")
-    if rejected_files:
-        response_parts.append(f"{len(rejected_files)} file(s) rejected")
-    
-    response_msg = ". ".join(response_parts) if response_parts else "No files processed"
-    
-    # Get updated file list
-    updated_files = get_uploaded_files()
-    
     return {
-        "message": response_msg,
-        "files": healthcare_files,
-        "total_files": len(updated_files),
-        "healthcare_files": healthcare_files,
-        "rejected_files": [r['filename'] for r in rejected_files],
-        "skipped_files": skipped_files,
-        "all_uploaded_files": updated_files,
-        "total_chunks": len(load_all_uploaded_chunks())
+        "message": "Files processed successfully",
+        "filenames": results["healthcare_files"],  # This is the required field
+        "healthcare_files": results["healthcare_files"],
+        "rejected_files": results["rejected_files"],
+        "total_files": len(existing_on_disk) + len(results["healthcare_files"])
     }
 
-@app.get("/files/")
-async def list_files():
-    files = get_uploaded_files()
-    chunks = load_all_uploaded_chunks()
-    
-    # Group chunks by source for detailed info
-    file_details = {}
-    for chunk in chunks:
-        source = chunk.get("source", "unknown")
-        if source not in file_details:
-            file_details[source] = {
-                "filename": source,
-                "chunk_count": 0,
-                "sample_text": ""
-            }
-        file_details[source]["chunk_count"] += 1
-        if not file_details[source]["sample_text"]:
-            file_details[source]["sample_text"] = chunk.get("text", "")[:100] + "..."
-    
-    return {
-        "files": files,
-        "total_files": len(files),
-        "total_chunks": len(chunks),
-        "file_details": list(file_details.values())
-    }
 
-@app.delete("/delete/{filename}")
+@app.post("/ingest-url")
+async def ingest_url(payload: Dict[str, Any]):
+    """Scrape a URL and store chunks in a separate web collection.
+    Does not affect PDF flow or existing retrieval behavior.
+    """
+    url = (payload or {}).get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Missing 'url'")
+
+    try:
+        chunks = await scrape_to_chunks(url)
+        if not chunks:
+            return {"message": "No extractable content found", "url": url, "stored": 0}
+        saved = save_chunks_to_web_store(chunks)
+        if not saved:
+            raise RuntimeError("Failed to store scraped content")
+        return {"message": "Ingested successfully", "url": url, "stored": len(chunks)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to ingest URL: {e}")
+
+
+@app.get("/web-sources")
+async def get_web_sources():
+    """List ingested web URLs and their chunk counts (separate collection)."""
+    return list_web_sources()
+
+
+@app.delete("/web-sources")
+async def delete_web_source_endpoint(payload: Dict[str, Any]):
+    url = (payload or {}).get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Missing 'url'")
+    ok = delete_web_source(url)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to delete web source")
+    return {"message": "Deleted", "url": url}
+
+
+@app.post("/files/delete/{filename}")
 async def delete_file(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    delete_chunks_for_file(filename)
-    return {"message": f"{filename} deleted."}
+    # Decode URL-encoded names and normalize to base filename
+    decoded = unquote(filename)
+    safe_name = os.path.basename(decoded)
+    filepath = Config.UPLOAD_DIR / safe_name
+    cleanup_file(filepath)
+    delete_chunks_for_file(safe_name)
+    # Clear conversation context so answers don't use stale history
+    try:
+        clear_conversation_context()
+    except Exception as _:
+        pass
+    return {"message": f"Deleted {safe_name}"}
+
 
 @app.delete("/clear-all/")
 async def clear_all():
-    for f in os.listdir(UPLOAD_DIR):
-        os.remove(os.path.join(UPLOAD_DIR, f))
+    for f in os.listdir(Config.UPLOAD_DIR):
+        os.remove(os.path.join(Config.UPLOAD_DIR, f))
     clear_all_chunks()
+    # Reset conversation context when repository is emptied
+    try:
+        clear_conversation_context()
+    except Exception as _:
+        pass
     return {"message": "All data cleared."}
 
-@app.post("/ask/")
+
+@app.post("/ask")
 async def ask(data: QuestionRequest):
-    """Main ask endpoint - always streams responses"""
+    """Handle streaming question responses with proper formatting"""
     return StreamingResponse(
         generate_streaming_response(data.question),
-        media_type="text/plain"
+        media_type="text/plain"  # Using text/plain for cleaner output
     )
 
-async def generate_streaming_response(question: str):
-    """Generate streaming response for real-time chat"""
-    try:
-        for chunk in answer_question_stream(question):
-            # Send clean text chunks directly
-            yield chunk
-        
-    except Exception as e:
-        print(f"[main] Streaming error: {e}")
-        yield "Sorry, I encountered an error while processing your request. Please try again."
+def generate_streaming_response(question: str):
+    """Generate a clean streaming response without SSE formatting"""
+    for chunk in answer_question_stream(question):
+        # Remove any existing data: prefixes and newlines
+        clean_chunk = chunk.replace("data: ", "").strip()
+        if clean_chunk:
+            yield clean_chunk + " "  # Add space between chunks for better readability
 
-@app.post("/new-session/")
+
+@app.get("/new-session/")
 async def new_session():
-    """Clear conversation context for new session"""
     clear_conversation_context()
-    return {"message": "New session started"}
+    return {"message": "New conversation session started"}
+
+
+@app.get("/files/")
+async def list_files():
+    """Summarize uploaded files and chunk counts from Qdrant for UI display."""
+    try:
+        records = load_all_uploaded_chunks(limit=2000)
+        # Group by filename
+        by_file: Dict[str, Dict[str, Any]] = {}
+        for r in records:
+            p = r.get("payload", {}) or {}
+            fname = p.get("filename") or p.get("source") or p.get("file") or "unknown"
+            if fname not in by_file:
+                by_file[fname] = {"filename": fname, "chunk_count": 0, "sample_text": None}
+            by_file[fname]["chunk_count"] += 1
+            if not by_file[fname]["sample_text"] and p.get("text"):
+                txt = p.get("text", "")
+                by_file[fname]["sample_text"] = (txt[:180] + ("..." if len(txt) > 180 else ""))
+        # Only include files that currently exist on disk to avoid stale entries
+        existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*.pdf")}
+        files = sorted([f for f in by_file.keys() if f in existing_on_disk])
+        file_details = [by_file[k] for k in files]
+        return {
+            "files": files,
+            "total_files": len(files),
+            "total_chunks": sum(item["chunk_count"] for item in file_details),
+            "file_details": file_details,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {e}")
+
+ 

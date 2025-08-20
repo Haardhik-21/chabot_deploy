@@ -12,8 +12,7 @@ class Chunk(BaseModel):
     page_number: Optional[int] = None
     chunk_index: Optional[int] = None
 
-class QuestionRequest(BaseModel):
-    question: str
+class QuestionRequest(BaseModel): question: str
 
 class AnswerResponse(BaseModel):
     answer: str
@@ -30,7 +29,11 @@ class PDFUploadResponse(BaseModel):
     filenames: List[str]
     total_files: int
     healthcare_files: List[str]
-    rejected_files: List[str] = []
+    rejected_files: List["RejectedFile"] = []
+
+class RejectedFile(BaseModel):
+    filename: str
+    reason: str
 
 class FileInfo(BaseModel):
     filename: str
@@ -44,16 +47,13 @@ class FilesListResponse(BaseModel):
     total_files: int
     total_chunks: int
 
-class DeletePDFRequest(BaseModel):
-    filename: str
+class DeletePDFRequest(BaseModel): filename: str
 
 class DeleteResponse(BaseModel):
     message: str
-    deleted_file: str
-    remaining_files: List[str]
+    success: bool
 
 class HealthCheckResponse(BaseModel):
     status: str
     message: str
     uploaded_files: int
-    total_chunks: int

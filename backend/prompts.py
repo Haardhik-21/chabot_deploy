@@ -1,8 +1,9 @@
 """
-Healthcare Chatbot Prompts Module
-Contains all prompts and templates for the healthcare chatbot
+Prompts Module (domain-agnostic)
+Contains prompts and templates for a general document QA assistant
 """
 import re
+from system_prompt import SYSTEM_PROMPT
 
 def load_prompts():
     """Load prompts from prompts.txt file"""
@@ -16,67 +17,64 @@ def load_prompts():
 def get_default_prompts():
     """Fallback prompts if file is not found"""
     return """
-### HEALTHCARE_SYSTEM_PROMPT
-You are MedAssist, a compassionate and knowledgeable AI healthcare assistant.
+### SYSTEM_PROMPT
+You are a helpful, concise, and human-like document assistant. Use the provided document excerpts to answer clearly without fabricating details.
 """
 
 def get_healthcare_system_prompt():
     """Get the main system prompt for healthcare responses"""
-    return """You are MedAssist, a compassionate and knowledgeable AI healthcare assistant. You specialize in analyzing medical documents and providing helpful, human-like responses about healthcare topics.
-
-Key Guidelines:
-- Always be warm, empathetic, and professional
-- Provide clear, accurate information based on the uploaded medical documents
-- Include specific references to the source documents when answering
-- Use natural, conversational language while maintaining medical accuracy
-- Always remind users to consult healthcare professionals for medical decisions
-- If asked about non-healthcare topics, politely redirect to healthcare-related queries
-
-When providing answers:
-1. Start with a warm, human-like acknowledgment
-2. Provide the requested information clearly
-3. Include specific document references
-4. End with appropriate medical disclaimers
-"""
+    # Legacy alias for backward compatibility; prefer importing SYSTEM_PROMPT directly
+    return SYSTEM_PROMPT
+# Note: legacy healthcare-specific notes removed.
 
 def get_polite_rejection():
     """Get polite rejection message for non-healthcare questions"""
-    return """I appreciate your question! However, I'm specifically designed to assist with healthcare and medical topics. I'd be happy to help if you have any questions about medical conditions, treatments, medications, or health-related information from your uploaded documents. Is there anything health-related I can help you with today?"""
+    return """I focus on answering using your uploaded documents and ingested web pages. Could you ask a question related to those?"""
 
 def get_no_documents_message():
     """Message when no documents are uploaded"""
-    return """Hello! I'm MedAssist, your healthcare document assistant. To get started, please upload some healthcare-related PDF documents (like medical reports, research papers, or treatment guidelines). Once you've uploaded your documents, I'll be happy to help you understand and analyze the medical information they contain."""
+    return """Hello! Please upload some PDF documents or ingest a web URL to get started. After that, ask any question and I'll answer using the content provided."""
 
 def get_summary_prompt(document_name=""):
     """Get prompt for document summarization"""
     doc_ref = f" from {document_name}" if document_name else ""
-    return f"""Please provide a comprehensive yet concise summary of the medical information{doc_ref}. Focus on:
-- Key medical conditions or topics discussed
+    return f"""Please provide a concise summary of the document{doc_ref}. Focus on:
+- Key topics discussed
 - Important findings or recommendations
-- Treatment options or procedures mentioned
-- Any significant medical data or statistics
+- Notable data points or sections
 
-Please structure your response in a clear, easy-to-understand format while maintaining medical accuracy."""
+Structure the response clearly and keep it easy to understand."""
 
 def get_context_prompt(question, context, sources=None):
     """Get prompt for answering questions with context"""
-    return f"""You are a helpful healthcare assistant. Answer the following question using the provided medical information. Be natural, clear, and conversational.
+    source_info = f"\nSource Document: {sources[0]}" if sources else ""
+    
+    return f"""You are a helpful document assistant answering using the provided excerpts.
+    
+Document Information:{source_info}
 
 Question: {question}
 
-Medical Information:
+Relevant Document Content:
 {context}
 
-Instructions:
-- Give a direct, helpful answer in simple language
-- Be warm and professional
-- Don't include document references in your response text
-- Focus on being informative and easy to understand
-- Keep medical disclaimers brief and natural"""
+Instructions for your response:
+1. Start with a clear, direct answer (if the question is a definition like "what is X", provide a brief definition first)
+2. Include specific details from the provided excerpts, and avoid hallucinating
+3. If the document doesn't contain the answer, say so clearly
+4. Use natural, human language; be warm and professional
+5. Do NOT include any "Sources:" text in the body; it will be appended separately by the system
+6. When listing items, use clean bullet points (one per line, using "- ")
+7. Mention the document name when referring to its content
+
+Example structure:
+"Based on the document [Document Name], [direct answer to question]. [Supporting details]. [Additional context if helpful]."
+
+Now, provide a helpful response to the user's question based on the document content above:"""
 
 def get_follow_up_prompt(question, previous_context, current_context):
     """Get prompt for handling follow-up questions"""
-    return f"""This is a follow-up question in an ongoing healthcare conversation. Please consider both the previous context and current question to provide a comprehensive response.
+    return f"""This is a follow-up question in an ongoing conversation. Consider both the previous context and current question.
 
 Current Question: {question}
 
@@ -91,24 +89,55 @@ Please provide a response that:
 4. Maintains conversation continuity
 5. Uses a warm, conversational tone"""
 
+def get_document_specific_prompt(question: str, context: str, source: str) -> str:
+    """Create a focused prompt for a specific document."""
+    return f"""Answer this question using ONLY the provided document:
+    
+    Question: {question}
+    
+    Document Content:
+    {context}
+    
+    Instructions:
+    - Be clear and concise
+    - Only answer what's in the document
+    - Keep it professional and focused"""
+
 def format_response_with_references(response, sources):
     """Format response with clean, natural source references"""
     if not sources:
-        return response + "\n\nPlease consult with your healthcare provider for personalized medical advice."
+        return response
+        
+    # Remove any existing reference markers
+    response = re.sub(r'\s*\[\d+\]', '', response)
     
-    # Clean up the response first
-    clean_response = response.strip()
-    
-    # Remove any existing reference formatting
-    clean_response = re.sub(r'\([^)]*\.pdf\)', '', clean_response)
-    clean_response = re.sub(r'📄.*?\*', '', clean_response, flags=re.DOTALL)
-    clean_response = clean_response.strip()
-    
-    # Add clean source reference
-    source_list = list(set(sources))  # Remove duplicates
-    if len(source_list) == 1:
-        ref_text = f"\n\nSource: {source_list[0]}"
+    # Add natural source references
+    if len(sources) == 1:
+        return f"{response}\n\nSource: {sources[0]}"
     else:
-        ref_text = f"\n\nSources: {', '.join(source_list)}"
-    
-    return clean_response + ref_text + "\n\nPlease consult with your healthcare provider for personalized medical advice."
+        return f"{response}\n\nSources: {', '.join(sources)}"
+
+# New small helpers for basic interactions
+def get_greeting_response():
+    return (
+        "Hello! I can help you explore your uploaded PDFs and ingested web pages. "
+        "Upload a file or ingest a URL, then ask your question (e.g., 'Summarize page 2' or 'What does this section say about eligibility?')."
+    )
+
+def get_help_response():
+    return (
+        "Try: 'Summarize the uploaded PDF', 'List the key points', or 'Explain the section on requirements'."
+    )
+
+def get_definition_prompt(question: str, sources=None):
+    """Prompt optimized to define a term first, then add details from context."""
+    source_info = f" based on {sources[0]}" if sources else ""
+    return (
+        f"Provide a concise definition of the concept asked in the question{source_info}.\n"
+        f"Question: {question}\n\n"
+        "Strict instructions:\n"
+        "- Output ONLY a concise definition in 2–3 sentences, human-friendly and professional.\n"
+        "- Do NOT include extra sections unless explicitly asked.\n"
+        "- Do NOT use bullet points, lists, or headings.\n"
+        "- If the document does not define it directly, say so and provide the closest relevant explanation from the excerpts."
+    )
