@@ -1,9 +1,10 @@
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import httpx
 import trafilatura
 from urllib.parse import urlparse
 from chunker import chunk_text
+import re
 
 DEFAULT_UA = os.getenv(
     "USER_AGENT",
@@ -54,6 +55,64 @@ async def fetch_and_extract(url: str) -> str:
 
     # Use trafilatura to extract main content
     extracted = trafilatura.extract(content, include_comments=False, include_tables=False, favor_recall=True) or ""
+
+    def looks_like_js_shell(text: str) -> bool:
+        tl = (text or "").lower()
+        if len(tl) < 120:
+            return True  # too little content
+        return any(k in tl for k in [
+            "enable javascript",
+            "javascript to run this app",
+            "please enable js",
+            "your browser does not support javascript",
+        ])
+
+    if extracted.strip() and not looks_like_js_shell(extracted):
+        return extracted.strip()
+
+    # Fallback 1: try Playwright (if installed) to render JS and then extract
+    async def _render_with_playwright(target_url: str) -> Optional[str]:
+        try:
+            from playwright.async_api import async_playwright  # type: ignore
+        except Exception:
+            return None
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(user_agent=DEFAULT_UA)
+                page = await context.new_page()
+                await page.goto(target_url, wait_until="networkidle", timeout=int(REQUEST_TIMEOUT * 1000))
+                html = await page.content()
+                await browser.close()
+                return html
+        except Exception:
+            return None
+
+    rendered_html = await _render_with_playwright(url)
+    if rendered_html:
+        extracted2 = trafilatura.extract(rendered_html, include_comments=False, include_tables=False, favor_recall=True) or ""
+        if extracted2.strip() and not looks_like_js_shell(extracted2):
+            return extracted2.strip()
+
+    # Fallback 2: prerender service (no JS runtime required)
+    # Using Jina reader proxy which returns simplified readable text for many sites.
+    # Note: This proxies the content; use only for public pages.
+    prerender_url = f"https://r.jina.ai/http://{urlparse(url).netloc}{urlparse(url).path or ''}"
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=REQUEST_TIMEOUT, headers={"User-Agent": DEFAULT_UA}) as client:
+            resp2 = await client.get(prerender_url)
+            if resp2.status_code == 200:
+                txt = (resp2.text or "").strip()
+                # If the prerender returns raw text, use it directly; otherwise try trafilatura again
+                if txt and len(txt) > 120 and not looks_like_js_shell(txt):
+                    return txt[:MAX_CRAWL_SIZE]
+                extracted3 = trafilatura.extract(txt, include_comments=False, include_tables=False, favor_recall=True) or ""
+                if extracted3.strip():
+                    return extracted3.strip()
+    except Exception:
+        pass
+
+    # Final fallback: return whatever we had extracted initially (may be minimal)
     return extracted.strip()
 
 

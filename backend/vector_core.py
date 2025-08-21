@@ -1,4 +1,3 @@
-"""Compact Qdrant vector store core (<200 lines)."""
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 from qdrant_client import QdrantClient

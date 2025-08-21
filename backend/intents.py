@@ -1,15 +1,26 @@
 """Lightweight intent detection helpers to keep ask.py short."""
 
+import re
+
+def _has_word(ql: str, word: str) -> bool:
+    return re.search(rf"\b{re.escape(word)}\b", ql) is not None
+
+def _has_phrase(ql: str, phrase: str) -> bool:
+    return re.search(rf"\b{re.escape(phrase)}\b", ql) is not None
+
 def is_greeting(q: str) -> bool:
     ql = (q or "").lower().strip()
-    return any(kw in ql for kw in [
-        "hi", "hello", "hey", "good morning", "good evening", "good afternoon"
-    ])
+    single_words = ["hi", "hello", "hey"]
+    phrases = ["good morning", "good evening", "good afternoon"]
+    return any(_has_word(ql, w) for w in single_words) or any(_has_phrase(ql, p) for p in phrases)
 
 
 def is_help(q: str) -> bool:
     ql = (q or "").lower().strip()
-    return "help" in ql or ql in {"?", "how to", "what can you do", "i need help"}
+    return (
+        _has_word(ql, "help")
+        or ql in {"?", "how to", "what can you do", "i need help"}
+    )
 
 
 def is_definition_question(q: str) -> bool:
@@ -33,11 +44,12 @@ def is_definition_question(q: str) -> bool:
 
 def is_smalltalk(q: str) -> bool:
     ql = (q or "").lower().strip()
-    smalltalk = [
-        "how are you", "are you there", "thank you", "thanks", "ok", "okay",
-        "yo", "sup", "what's up", "whats up"
+    phrases = [
+        "how are you", "are you there", "thank you", "thanks",
+        "what's up", "whats up"
     ]
-    return any(kw in ql for kw in smalltalk)
+    words = ["ok", "okay", "yo", "sup"]
+    return any(_has_phrase(ql, p) for p in phrases) or any(_has_word(ql, w) for w in words)
 
 
 def is_about_question(q: str) -> bool:

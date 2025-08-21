@@ -13,3 +13,6 @@ pdf2image
 pytesseract
 httpx
 trafilatura
+docx2txt
+openpyxl
+playwright

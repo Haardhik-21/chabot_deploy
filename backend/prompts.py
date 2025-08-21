@@ -58,17 +58,16 @@ Question: {question}
 Relevant Document Content:
 {context}
 
-Instructions for your response:
+Instructions for your response (STRICT):
 1. Start with a clear, direct answer (if the question is a definition like "what is X", provide a brief definition first)
 2. Include specific details from the provided excerpts, and avoid hallucinating
 3. If the document doesn't contain the answer, say so clearly
 4. Use natural, human language; be warm and professional
 5. Do NOT include any "Sources:" text in the body; it will be appended separately by the system
-6. When listing items, use clean bullet points (one per line, using "- ")
-7. Mention the document name when referring to its content
-
-Example structure:
-"Based on the document [Document Name], [direct answer to question]. [Supporting details]. [Additional context if helpful]."
+6. Output MUST be plain text. Do NOT use Markdown formatting (no **bold**, no lists/bullets, no headings).
+7. Preserve names exactly as they appear in the excerpts; do not alter or stylize them.
+8. When enumerating multiple people/items, place each on a new line as plain text.
+9. If the user asks multiple different sub-questions in one message (e.g., about different topics like a disease, a person, and policies), answer each sub-question in its own paragraph, labeled succinctly (e.g., "Pneumonia:", "Sekhar Kammula:", "Policies/Publications:") with a single blank line between paragraphs. Do not use numbered or bulleted lists.
 
 Now, provide a helpful response to the user's question based on the document content above:"""
 

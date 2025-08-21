@@ -8,7 +8,7 @@ import os
 # Tesseract path (update if needed)
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-def chunk_text(text: str, filename: str, chunk_size: int = 400, overlap: int = 100) -> List[Dict[str, Any]]:
+def chunk_text(text: str, filename: str, chunk_size: int = 400, overlap: int = 140) -> List[Dict[str, Any]]:
     """Chunk text with OCR fallback for PDFs."""
     if not (text or '').strip() and os.path.exists(filename) and filename.lower().endswith(".pdf"):
         text = ocr_pdf(filename)

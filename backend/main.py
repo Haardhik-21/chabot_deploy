@@ -3,15 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
 import os
-from pathlib import Path
-from dotenv import load_dotenv
 
 # Local imports
 from models import QuestionRequest, PDFUploadResponse
-from qa_core import answer_question_stream
+from response import generate_streaming_response
 from context import clear_conversation_context
-from pdf_parser import extract_text_from_pdf
 from chunker import chunk_text
+from extractors import extract_text
 from vector_core import (
     save_chunks_to_store, delete_chunks_for_file,
     clear_all_chunks, load_all_uploaded_chunks
@@ -33,25 +31,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def process_pdf(file: UploadFile) -> Dict[str, Any]:
-    """Process a single PDF file and return chunks or error."""
-    if not file.filename.lower().endswith('.pdf'):
-        return {"error": "Only PDF files are supported"}
-
+def process_file(file: UploadFile) -> Dict[str, Any]:
+    """Process a single uploaded file (pdf/docx/xlsx/csv/txt, etc.) and return chunks or error."""
     path = Config.UPLOAD_DIR / file.filename
     try:
         # Save uploaded file
         save_uploaded_file(file, Config.UPLOAD_DIR)
 
-        # Extract text (may be empty for scanned PDFs; chunker has OCR fallback)
+        # Unified text extraction (PDFs do native+OCR via pdf_parser)
         text = ""
         try:
-            text = extract_text_from_pdf(str(path)) or ""
+            text = extract_text(str(path)) or ""
         except Exception as e:
-            # If PDF text extraction fails (e.g., Pixmap/get_rect issues), proceed to OCR fallback
-            print(f"[upload] extract_text_from_pdf failed: {e}. Falling back to OCR in chunker.")
+            print(f"[upload] extract_text failed for {file.filename}: {e}")
 
-        # Chunk (chunker will OCR if text is empty and file is a PDF), and embed inside chunker
+        # Chunk (chunker will OCR if text is empty and file is a PDF)
         chunks = chunk_text(text, str(path))
         if not chunks:
             return {"error": "No valid chunks extracted"}
@@ -66,8 +60,8 @@ def process_pdf(file: UploadFile) -> Dict[str, Any]:
 
 @app.post("/upload/", response_model=PDFUploadResponse)
 async def upload_files(files: List[UploadFile] = File(...)):
-    # Use files present on disk as the source of truth for the upload limit
-    existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*.pdf")}
+    # Use files present on disk as the source of truth for the upload limit (all types)
+    existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*")}
     if (total := len(existing_on_disk) + len(files)) > Config.MAX_FILES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -83,8 +77,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
     for file in files:
         if file.filename in existing_on_disk:
             continue
-            
-        if result := process_pdf(file):
+        
+        if result := process_file(file):
             if "error" in result:
                 results["rejected_files"].append({
                     "filename": file.filename, 
@@ -164,15 +158,15 @@ async def delete_file(filename: str):
 
 @app.delete("/clear-all/")
 async def clear_all():
-    for f in os.listdir(Config.UPLOAD_DIR):
-        os.remove(os.path.join(Config.UPLOAD_DIR, f))
+    locked = clear_directory(Config.UPLOAD_DIR)
     clear_all_chunks()
     # Reset conversation context when repository is emptied
     try:
         clear_conversation_context()
     except Exception as _:
         pass
-    return {"message": "All data cleared."}
+    resp = {"message": "All data cleared.", "locked_files": locked}
+    return resp
 
 
 @app.post("/ask")
@@ -182,14 +176,6 @@ async def ask(data: QuestionRequest):
         generate_streaming_response(data.question),
         media_type="text/plain"  # Using text/plain for cleaner output
     )
-
-def generate_streaming_response(question: str):
-    """Generate a clean streaming response without SSE formatting"""
-    for chunk in answer_question_stream(question):
-        # Remove any existing data: prefixes and newlines
-        clean_chunk = chunk.replace("data: ", "").strip()
-        if clean_chunk:
-            yield clean_chunk + " "  # Add space between chunks for better readability
 
 
 @app.get("/new-session/")
@@ -214,8 +200,8 @@ async def list_files():
             if not by_file[fname]["sample_text"] and p.get("text"):
                 txt = p.get("text", "")
                 by_file[fname]["sample_text"] = (txt[:180] + ("..." if len(txt) > 180 else ""))
-        # Only include files that currently exist on disk to avoid stale entries
-        existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*.pdf")}
+        # Only include files that currently exist on disk to avoid stale entries (all types)
+        existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*")}
         files = sorted([f for f in by_file.keys() if f in existing_on_disk])
         file_details = [by_file[k] for k in files]
         return {
