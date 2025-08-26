@@ -1,6 +1,3 @@
-"""Conversation context utilities.
-Shared across modules to keep ask.py slim.
-"""
 from typing import List, Dict
 
 # Module-level shared context

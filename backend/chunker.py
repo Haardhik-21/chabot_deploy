@@ -4,9 +4,10 @@ from embedding import embed_chunks
 from pdf2image import convert_from_path
 import pytesseract
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 # Tesseract path (update if needed)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD", "tesseract")
 
 def chunk_text(text: str, filename: str, chunk_size: int = 400, overlap: int = 140) -> List[Dict[str, Any]]:
     """Chunk text with OCR fallback for PDFs."""

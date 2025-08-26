@@ -2,23 +2,33 @@ import os
 import google.generativeai as genai
 from typing import Generator
 from dotenv import load_dotenv
+from pathlib import Path
 from system_prompt import SYSTEM_PROMPT
 
-# Initialize Gemini
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Initialize Gemini with .env loaded relative to backend dir
+_ENV_PATH = Path(__file__).with_name('.env')
+load_dotenv(dotenv_path=_ENV_PATH)
+_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+if not _GEMINI_API_KEY:
+    print("[gemini] Missing GEMINI_API_KEY in backend/.env")
+genai.configure(api_key=_GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=SYSTEM_PROMPT)
 
 def _get_response(prompt: str, context: str = "", stream: bool = False, **config):
     """Helper function to generate responses with common config."""
     full_prompt = f"{prompt}\n\nContext from medical documents:\n{context}" if context else prompt
+    if not _GEMINI_API_KEY:
+        # Provide a graceful message if key is missing
+        class _Fake:
+            text = "Gemini API key is not configured. Please set GEMINI_API_KEY in backend/.env and restart."
+        return _Fake()
     return model.generate_content(
         full_prompt,
         generation_config=genai.types.GenerationConfig(
             temperature=config.get('temperature', 0.7),
             top_p=config.get('top_p', 0.8),
             top_k=config.get('top_k', 40),
-            max_output_tokens=config.get('max_output_tokens', 1024),
+            max_output_tokens=config.get('max_output_tokens', 2048),
         ),
         stream=stream
     )

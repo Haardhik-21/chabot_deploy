@@ -68,3 +68,28 @@ def is_about_question(q: str) -> bool:
         "summary",
     ]
     return any(ql == p or ql.startswith(p + " ") for p in patterns)
+
+
+def is_entertainment_question(q: str) -> bool:
+    """Basic detector for entertainment-related questions."""
+    ql = (q or "").lower().strip()
+    keywords = [
+        "movie", "film", "cinema", "actor", "actress", "director", "producer", "celebrity",
+        "bollywood", "tollywood", "hollywood", "ott", "series", "tv show", "song", "music",
+        "box office", "trailer", "release date", "imdb", "rotten tomatoes",
+        "sekhar kammula", "kammula", "rajamouli", "ntr", "allu arjun", "deepika", "prabhas",
+        "cast", "starring", "soundtrack"
+    ]
+    if any(k in ql for k in keywords):
+        return True
+    # Regex patterns for common verb/noun variations
+    import re
+    patterns = [
+        r"\bdirect(?:or|ed|ing)\b",
+        r"\breleas(?:e|ed|ing)\b",
+        r"\bstar(?:s|ring)?\b",
+        r"\bbox\s+office\b",
+        r"\btv\s*show\b",
+        r"\bseries\b",
+    ]
+    return any(re.search(p, ql) for p in patterns)

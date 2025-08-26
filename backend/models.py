@@ -12,7 +12,9 @@ class Chunk(BaseModel):
     page_number: Optional[int] = None
     chunk_index: Optional[int] = None
 
-class QuestionRequest(BaseModel): question: str
+class QuestionRequest(BaseModel):
+    question: str
+    entertainment_enabled: bool = False
 
 class AnswerResponse(BaseModel):
     answer: str

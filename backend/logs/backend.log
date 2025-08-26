@@ -1,0 +1,35 @@
+2025-08-25 16:27:08,187 [INFO] backend_logger: Server started
+2025-08-25 16:27:08,188 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-25 16:35:43,289 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-25 18:00:43,990 [INFO] backend_logger: Server started
+2025-08-25 18:00:43,990 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-25 18:06:59,835 [INFO] backend_logger: Server started
+2025-08-25 18:06:59,836 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-25 18:07:28,407 [INFO] backend_logger: Server started
+2025-08-25 18:07:28,408 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-25 18:08:26,958 [INFO] backend_logger: Server started
+2025-08-25 18:08:26,959 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 09:56:45,640 [INFO] backend_logger: Server started
+2025-08-26 09:56:45,642 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 11:12:31,109 [INFO] backend_logger: [web-sources] Deleted https://www.bbc.com/news
+2025-08-26 11:13:46,390 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-26 11:13:59,041 [ERROR] backend_logger: [upload] extract_text failed for cbit alumni photo testing.pdf: r"C:\Program Files\Tesseract-OCR\tesseract.exe" is not installed or it's not in your PATH. See README file for more information.
+2025-08-26 11:13:59,076 [WARNING] backend_logger: [upload] Rejected cbit alumni photo testing.pdf: No valid chunks extracted
+2025-08-26 11:16:04,359 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-26 11:25:00,515 [ERROR] backend_logger: [upload] extract_text failed for Screenshot 2025-08-18 172400 (1).pdf: r"C:\Program Files\Tesseract-OCR\tesseract.exe" is not installed or it's not in your PATH. See README file for more information.
+2025-08-26 11:25:00,551 [WARNING] backend_logger: [upload] Rejected Screenshot 2025-08-18 172400 (1).pdf: No valid chunks extracted
+2025-08-26 11:34:51,423 [INFO] backend_logger: Server started
+2025-08-26 11:34:51,424 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 11:36:13,853 [ERROR] backend_logger: [upload] extract_text failed for cbit alumni photo testing.pdf: r"C:\Program Files\Tesseract-OCR\tesseract.exe" is not installed or it's not in your PATH. See README file for more information.
+2025-08-26 11:36:13,886 [WARNING] backend_logger: [upload] Rejected cbit alumni photo testing.pdf: No valid chunks extracted
+2025-08-26 11:38:40,707 [INFO] backend_logger: Server started
+2025-08-26 11:38:40,707 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 11:39:57,224 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-26 11:45:51,543 [INFO] backend_logger: Server started
+2025-08-26 11:45:51,544 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 11:46:27,082 [ERROR] backend_logger: [upload] extract_text failed for cbit alumni photo testing.pdf: r"C:\Program Files\Tesseract-OCR\tesseract.exe" is not installed or it's not in your PATH. See README file for more information.
+2025-08-26 11:46:27,104 [WARNING] backend_logger: [upload] Rejected cbit alumni photo testing.pdf: No valid chunks extracted
+2025-08-26 11:47:12,461 [INFO] backend_logger: Server started
+2025-08-26 11:47:12,461 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-26 11:50:11,967 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-26 12:49:20,320 [INFO] backend_logger: [session] New conversation session started
