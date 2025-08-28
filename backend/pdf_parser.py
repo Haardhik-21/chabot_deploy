@@ -12,7 +12,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
             # If page has no or very little native text, also OCR the image
             do_ocr = len(page_text) == 0 or len(page_text) < 300
             if do_ocr:
-                pix = page.get_pixmap(dpi=400)
+                # Lower DPI to reduce memory footprint on small instances
+                pix = page.get_pixmap(dpi=200)
                 img = Image.open(io.BytesIO(pix.tobytes("png")))
                 ocr_text = (pytesseract.image_to_string(img, config="--oem 3 --psm 6") or "").strip()
                 if page_text and ocr_text:

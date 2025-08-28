@@ -21,5 +21,6 @@ COPY . .
 # ENV TESSERACT_CMD=/usr/bin/tesseract
 
 EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use a single worker to avoid duplicate model loads and reduce memory usage
+# Use Render's dynamic PORT if provided; default to 8000 locally
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 5"]
