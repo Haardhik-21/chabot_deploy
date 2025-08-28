@@ -9,6 +9,9 @@ load_dotenv()
 # Tesseract path (update if needed)
 pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD", "tesseract")
 
+# Optional: Poppler path for Windows (used by pdf2image)
+POPPLER_PATH = os.getenv("POPPLER_PATH")
+
 def chunk_text(text: str, filename: str, chunk_size: int = 400, overlap: int = 140) -> List[Dict[str, Any]]:
     """Chunk text with OCR fallback for PDFs."""
     if not (text or '').strip() and os.path.exists(filename) and filename.lower().endswith(".pdf"):
@@ -28,8 +31,10 @@ def chunk_text(text: str, filename: str, chunk_size: int = 400, overlap: int = 1
 def ocr_pdf(pdf_path: str) -> str:
     """Extract text from PDF using OCR."""
     try:
+        # Use POPPLER_PATH if provided (Windows); otherwise rely on system PATH (Linux/Docker)
+        images = convert_from_path(pdf_path, poppler_path=POPPLER_PATH) if POPPLER_PATH else convert_from_path(pdf_path)
         return "\n".join(
-            page_text for img in convert_from_path(pdf_path)
+            page_text for img in images
             if (page_text := pytesseract.image_to_string(img).strip())
         )
     except Exception as e:

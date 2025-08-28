@@ -5,6 +5,7 @@ from qdrant_client.http.models import Distance, VectorParams, PointStruct, Filte
 from config import Config
 import time
 import logging
+import os
 
 _client = QdrantClient(url=Config.QDRANT_URL, api_key=Config.QDRANT_API_KEY or None, timeout=30)
 _COLLECTION = Config.QDRANT_COLLECTION
@@ -208,12 +209,47 @@ def delete_chunks_for_file(filename: str) -> bool:
     if not _ensure_collection(): return False
     try:
         full = str(Config.UPLOAD_DIR / filename)
-        _client.delete(collection_name=_COLLECTION, filter=Filter(should=[
-            FieldCondition(key="filename", match=MatchValue(value=filename)),
-            FieldCondition(key="source", match=MatchValue(value=filename)),
-            FieldCondition(key="source_file", match=MatchValue(value=filename)),
-            FieldCondition(key="source", match=MatchValue(value=full)),
-        ]), wait=True)
+        base = os.path.basename(filename)
+        # 1) Primary: try filter-based delete across common fields/variants
+        try:
+            _client.delete(collection_name=_COLLECTION, filter=Filter(should=[
+                FieldCondition(key="filename", match=MatchValue(value=base)),
+                FieldCondition(key="filename", match=MatchValue(value=filename)),
+                FieldCondition(key="source", match=MatchValue(value=base)),
+                FieldCondition(key="source", match=MatchValue(value=filename)),
+                FieldCondition(key="source", match=MatchValue(value=full)),
+                FieldCondition(key="source_file", match=MatchValue(value=base)),
+            ]), wait=True)
+        except Exception as e:
+            logging.warning(f"[vector_core] filter delete failed for '{filename}': {e}")
+
+        # 2) Fallback: scan collection and delete by exact basename/fullpath matches
+        recs, token = _client.scroll(collection_name=_COLLECTION, with_payload=["source", "filename", "source_file"], with_vectors=False, limit=256)
+        ids_to_delete = []
+        targets = {
+            base,
+            filename,
+            full,
+        }
+        while recs:
+            for r in recs:
+                p = r.payload or {}
+                s = str(p.get("source") or "")
+                f = str(p.get("filename") or "")
+                sf = str(p.get("source_file") or "")
+                # Compare against targets and basenames of any path-like strings
+                cand = {s, f, sf, os.path.basename(s), os.path.basename(f), os.path.basename(sf)}
+                if targets & cand:
+                    ids_to_delete.append(r.id)
+            if not token:
+                break
+            recs, token = _client.scroll(collection_name=_COLLECTION, with_payload=["source", "filename", "source_file"], with_vectors=False, limit=256, offset=token)
+
+        if ids_to_delete:
+            try:
+                _client.delete(collection_name=_COLLECTION, points_selector=PointIdsList(points=ids_to_delete), wait=True)
+            except Exception as e:
+                logging.error(f"[vector_core] id delete failed for '{filename}': {e}")
         return True
     except Exception:
         return False
