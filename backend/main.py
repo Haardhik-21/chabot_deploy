@@ -35,6 +35,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    try:
+        logger.info(f"[req] {request.method} {request.url.path}")
+        response = await call_next(request)
+        logger.info(f"[res] {request.method} {request.url.path} -> {response.status_code}")
+        return response
+    except Exception as e:
+        logger.exception(f"[req] unhandled error on {request.method} {request.url.path}: {e}")
+        raise
+
 
 def process_file(file: UploadFile) -> Dict[str, Any]:
     """Process a single uploaded file (pdf/docx/xlsx/csv/txt, etc.) and return chunks or error."""
