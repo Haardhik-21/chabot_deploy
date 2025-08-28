@@ -3,7 +3,7 @@ services:
     name: healthcare-backend
     env: docker
     rootDir: backend
-    plan: starter
+    plan: free          # <- use free, not starter
     autoDeploy: true
     healthCheckPath: /files/
     envVars:
@@ -26,14 +26,12 @@ services:
     name: healthcare-frontend
     env: node
     rootDir: frontend
-    plan: starter
+    plan: free          # <- use free, not starter
     autoDeploy: true
     buildCommand: |
       npm ci
       npm run build
     startCommand: npm run start
     envVars:
-      # Set this manually in the frontend service after the backend is created:
-      # https://<your-backend-service-host>.onrender.com
       - key: NEXT_PUBLIC_API_URL
         sync: false
