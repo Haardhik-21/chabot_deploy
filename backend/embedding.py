@@ -9,7 +9,8 @@ except Exception as _e:
 
 # Embedding configuration
 EMBED_DIM = 384
-BATCH_SIZE = 32
+# Smaller batch size reduces RAM spikes and avoids timeouts/oom on small instances
+BATCH_SIZE = 8
 
 # Lazy model holder
 _model = None
@@ -21,9 +22,9 @@ def _get_model():
             raise RuntimeError("sentence-transformers not available")
         # Try primary model name, then HF hub path fallback
         try:
-            _model = SentenceTransformer("all-MiniLM-L6-v2")
+            _model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         except Exception:
-            _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
     return _model
 
 # Simple LRU-like cache

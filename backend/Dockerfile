@@ -20,7 +20,14 @@ COPY . .
 # If using env-driven tesseract path:
 # ENV TESSERACT_CMD=/usr/bin/tesseract
 
+# Safe defaults to reduce memory/thread spikes (can be overridden in Render env)
+ENV OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false \
+    TESSERACT_CMD=/usr/bin/tesseract
+
 EXPOSE 8000
 # Use a single worker to avoid duplicate model loads and reduce memory usage
 # Use Render's dynamic PORT if provided; default to 8000 locally
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 5"]
+# Enable proxy headers for Cloudflare/Render and limit concurrency to reduce overload
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --limit-concurrency 2 --timeout-keep-alive 5 --proxy-headers --forwarded-allow-ips='*'"]
