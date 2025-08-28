@@ -67,6 +67,7 @@ def process_file(file: UploadFile) -> Dict[str, Any]:
 
 @app.post("/upload/", response_model=PDFUploadResponse)
 async def upload_files(files: List[UploadFile] = File(...)):
+    logger.info(f"[upload] request received: {len(files) if files else 0} file(s)")
     existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*")}
     if (total := len(existing_on_disk) + len(files)) > Config.MAX_FILES:
         raise HTTPException(
@@ -81,6 +82,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     all_chunks = []
 
     for file in files:
+        logger.info(f"[upload] processing: {file.filename}")
         if file.filename in existing_on_disk:
             continue
 
@@ -96,15 +98,24 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 results["healthcare_files"].append(file.filename)
 
     if all_chunks:
-        save_chunks_to_store(all_chunks)
+        try:
+            logger.info(f"[upload] saving {len(all_chunks)} chunk(s) to vector store")
+            save_chunks_to_store(all_chunks)
+        except Exception as e:
+            logger.exception(f"[upload] vector save failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Vector store save failed: {e}")
 
-    return {
+    resp = {
         "message": "Files processed successfully",
         "filenames": results["healthcare_files"],
         "healthcare_files": results["healthcare_files"],
         "rejected_files": results["rejected_files"],
         "total_files": len(existing_on_disk) + len(results["healthcare_files"])
     }
+    logger.info(
+        f"[upload] done: accepted={len(results['healthcare_files'])} rejected={len(results['rejected_files'])}"
+    )
+    return resp
 
 
 @app.post("/ingest-url")
