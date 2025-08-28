@@ -32,11 +32,7 @@ def ocr_pdf(pdf_path: str) -> str:
     """Extract text from PDF using OCR."""
     try:
         # Use POPPLER_PATH if provided (Windows); otherwise rely on system PATH (Linux/Docker)
-        images = (
-            convert_from_path(pdf_path, dpi=150, poppler_path=POPPLER_PATH)
-            if POPPLER_PATH
-            else convert_from_path(pdf_path, dpi=150)
-        )
+        images = convert_from_path(pdf_path, poppler_path=POPPLER_PATH) if POPPLER_PATH else convert_from_path(pdf_path)
         return "\n".join(
             page_text for img in images
             if (page_text := pytesseract.image_to_string(img).strip())

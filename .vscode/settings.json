@@ -1,0 +1,11 @@
+{
+  // Ensure dockerignore files are not parsed by TypeScript
+  "files.associations": {
+    ".dockerignore": "ignore",
+    "*.dockerignore": "ignore"
+  },
+  // Optional: keep TypeScript diagnostics focused on TS/TSX only
+  "typescript.validate.enable": true,
+  // Do not surface project-wide diagnostics for non-project files
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false
+}

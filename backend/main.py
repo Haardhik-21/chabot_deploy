@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
@@ -35,17 +35,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def log_requests(request, call_next):
-    try:
-        logger.info(f"[req] {request.method} {request.url.path}")
-        response = await call_next(request)
-        logger.info(f"[res] {request.method} {request.url.path} -> {response.status_code}")
-        return response
-    except Exception as e:
-        logger.exception(f"[req] unhandled error on {request.method} {request.url.path}: {e}")
-        raise
-
 
 def process_file(file: UploadFile) -> Dict[str, Any]:
     """Process a single uploaded file (pdf/docx/xlsx/csv/txt, etc.) and return chunks or error."""
@@ -76,46 +65,8 @@ def process_file(file: UploadFile) -> Dict[str, Any]:
             cleanup_file(path)
 
 
-def _background_ingest(saved_filenames: List[str]) -> None:
-    try:
-        logger.info(f"[bg] ingest start for {len(saved_filenames)} file(s)")
-        all_chunks: List[Dict[str, Any]] = []
-        accepted: List[str] = []
-        rejected: List[Dict[str, Any]] = []
-        for fname in saved_filenames:
-            try:
-                p = Config.UPLOAD_DIR / fname
-                # Re-run extraction and chunking from disk
-                text = ""
-                try:
-                    text = extract_text(str(p)) or ""
-                except Exception as e:
-                    logger.error(f"[bg] extract_text failed for {fname}: {e}")
-                chunks = chunk_text(text, str(p))
-                if not chunks:
-                    rejected.append({"filename": fname, "reason": "No valid chunks extracted"})
-                    continue
-                all_chunks.extend(chunks)
-                accepted.append(fname)
-            except Exception as e:
-                logger.exception(f"[bg] processing failed for {fname}: {e}")
-                rejected.append({"filename": fname, "reason": str(e)})
-        if all_chunks:
-            try:
-                logger.info(f"[bg] saving {len(all_chunks)} chunk(s) to vector store")
-                ok = save_chunks_to_store(all_chunks)
-                if not ok:
-                    logger.error("[bg] vector store save returned False")
-            except Exception as e:
-                logger.exception(f"[bg] vector save failed: {e}")
-        logger.info(f"[bg] ingest done: accepted={len(accepted)} rejected={len(rejected)}")
-    except Exception as e:
-        logger.exception(f"[bg] unexpected failure: {e}")
-
-
-@app.post("/upload/", response_model=PDFUploadResponse, status_code=status.HTTP_202_ACCEPTED)
-async def upload_files(background_tasks: BackgroundTasks, files: List[UploadFile] = File(...)):
-    logger.info(f"[upload] request received: {len(files) if files else 0} file(s)")
+@app.post("/upload/", response_model=PDFUploadResponse)
+async def upload_files(files: List[UploadFile] = File(...)):
     existing_on_disk = {f.name for f in Config.UPLOAD_DIR.glob("*")}
     if (total := len(existing_on_disk) + len(files)) > Config.MAX_FILES:
         raise HTTPException(
@@ -126,32 +77,34 @@ async def upload_files(background_tasks: BackgroundTasks, files: List[UploadFile
             )
         )
 
-    saved_filenames: List[str] = []
-    rejected_files: List[Dict[str, Any]] = []
+    results = {"healthcare_files": [], "rejected_files": []}
+    all_chunks = []
+
     for file in files:
-        try:
-            logger.info(f"[upload] saving: {file.filename}")
-            if file.filename in existing_on_disk:
-                # Overwrite existing with latest
-                cleanup_file(Config.UPLOAD_DIR / file.filename)
-            save_uploaded_file(file, Config.UPLOAD_DIR)
-            saved_filenames.append(file.filename)
-        except Exception as e:
-            logger.exception(f"[upload] failed to save {file.filename}: {e}")
-            rejected_files.append({"filename": file.filename, "reason": f"Save failed: {e}"})
+        if file.filename in existing_on_disk:
+            continue
 
-    if saved_filenames:
-        background_tasks.add_task(_background_ingest, saved_filenames)
+        if result := process_file(file):
+            if "error" in result:
+                logger.warning(f"[upload] Rejected {file.filename}: {result['error']}")
+                results["rejected_files"].append({
+                    "filename": file.filename,
+                    "reason": result["error"]
+                })
+            else:
+                all_chunks.extend(result["chunks"])
+                results["healthcare_files"].append(file.filename)
 
-    resp = {
-        "message": "Files accepted for processing",
-        "filenames": saved_filenames,
-        "healthcare_files": saved_filenames,
-        "rejected_files": rejected_files,
-        "total_files": len(existing_on_disk) + len(saved_filenames)
+    if all_chunks:
+        save_chunks_to_store(all_chunks)
+
+    return {
+        "message": "Files processed successfully",
+        "filenames": results["healthcare_files"],
+        "healthcare_files": results["healthcare_files"],
+        "rejected_files": results["rejected_files"],
+        "total_files": len(existing_on_disk) + len(results["healthcare_files"])
     }
-    logger.info(f"[upload] accepted={len(saved_filenames)} rejected={len(rejected_files)} (processing in background)")
-    return resp
 
 
 @app.post("/ingest-url")

@@ -56,3 +56,8 @@
 2025-08-28 15:01:01,416 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
 2025-08-28 15:04:46,801 [INFO] backend_logger: Server started
 2025-08-28 15:04:46,802 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-28 17:20:49,502 [INFO] backend_logger: Server started
+2025-08-28 17:20:49,502 [ERROR] backend_logger: Failed to embed chunk 5 from document X.pdf
+2025-08-28 17:23:46,957 [INFO] backend_logger: [clear-all] All data cleared
+2025-08-28 17:24:17,493 [INFO] backend_logger: [ingest-url] Ingested https://www.bbc.com/ with 2 chunks
+2025-08-28 17:25:14,553 [INFO] backend_logger: [web-sources] Deleted https://www.bbc.com/
