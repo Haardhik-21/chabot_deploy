@@ -8,23 +8,17 @@ services:
     healthCheckPath: /files/
     envVars:
       - key: QDRANT_URL
-        # Set this in the Render dashboard to your Qdrant Cloud URL
         sync: false
       - key: QDRANT_API_KEY
-        # Set in Render dashboard
         sync: false
       - key: QDRANT_COLLECTION
         value: healthcare_docs
       - key: GEMINI_API_KEY
-        # Set in Render dashboard
         sync: false
       - key: ENTERTAINMENT_API_KEY
-        # Optional
         sync: false
       - key: TMDB_API_KEY
-        # Optional
         sync: false
-      # On Linux/Docker, tesseract is on PATH. POPPLER_PATH not required with poppler-utils pkg.
       - key: TESSERACT_CMD
         value: /usr/bin/tesseract
 
@@ -39,8 +33,7 @@ services:
       npm run build
     startCommand: npm run start
     envVars:
+      # Set this manually in the frontend service after the backend is created:
+      # https://<your-backend-service-host>.onrender.com
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: healthcare-backend
-          type: web
-          property: url
+        sync: false
