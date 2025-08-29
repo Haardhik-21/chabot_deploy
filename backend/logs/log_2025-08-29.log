@@ -1,0 +1,34 @@
+2025-08-29 10:06:01.239 | INFO     | logger.<module>:54 - Server started
+2025-08-29 10:06:01.240 | ERROR    | logger.<module>:55 - Failed to embed chunk 5 from document X.pdf
+2025-08-29 10:06:30.826 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:06:31.112 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web "HTTP/1.1 200 OK"
+2025-08-29 10:06:31.391 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web/points/scroll "HTTP/1.1 200 OK"
+2025-08-29 10:06:31.677 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:06:31.946 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:06:32.217 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs/points/scroll "HTTP/1.1 200 OK"
+2025-08-29 10:06:35.457 | INFO     | __init__.callHandlers:1744 - HTTP Request: DELETE https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:06:35.854 | INFO     | __init__.callHandlers:1744 - HTTP Request: PUT https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:06:35.854 | INFO     | main.clear_all:174 - [clear-all] All data cleared
+2025-08-29 10:07:14.637 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:07:14.906 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web "HTTP/1.1 200 OK"
+2025-08-29 10:07:15.180 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web/points/scroll "HTTP/1.1 200 OK"
+2025-08-29 10:07:15.460 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web/points/delete?wait=true "HTTP/1.1 200 OK"
+2025-08-29 10:07:15.463 | INFO     | main.delete_web_source_endpoint:147 - [web-sources] Deleted https://www.bbc.com/
+2025-08-29 10:07:15.738 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:07:16.009 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web "HTTP/1.1 200 OK"
+2025-08-29 10:07:16.279 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_web/points/scroll "HTTP/1.1 200 OK"
+2025-08-29 10:07:57.727 | INFO     | __init__.callHandlers:1744 - Use pytorch device_name: cpu
+2025-08-29 10:07:57.728 | INFO     | __init__.callHandlers:1744 - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-08-29 10:08:06.137 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:08:06.408 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:08:06.705 | INFO     | __init__.callHandlers:1744 - HTTP Request: PUT https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs/points?wait=true "HTTP/1.1 200 OK"
+2025-08-29 10:08:06.988 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections "HTTP/1.1 200 OK"
+2025-08-29 10:08:07.259 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:08:07.537 | INFO     | __init__.callHandlers:1744 - HTTP Request: POST https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs/points/scroll "HTTP/1.1 200 OK"
+2025-08-29 10:09:05.724 | INFO     | main.new_session:217 - [session] New conversation session started
+2025-08-29 10:09:07.896 | INFO     | __init__.callHandlers:1744 - HTTP Request: DELETE https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:09:08.299 | INFO     | __init__.callHandlers:1744 - HTTP Request: PUT https://68aa0672-753c-4a74-a2f4-60bc6db55c34.us-east4-0.gcp.cloud.qdrant.io:6333/collections/healthcare_docs "HTTP/1.1 200 OK"
+2025-08-29 10:09:08.300 | INFO     | main.clear_all:174 - [clear-all] All data cleared
+2025-08-29 10:22:30.457 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET http://www.omdbapi.com/?t=SRK&apikey=405a02a "HTTP/1.1 200 OK"
+2025-08-29 10:22:32.129 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://api.themoviedb.org/3/find/tt8365028?api_key=d438b9b85205a657f62e8d7ce74e4789&external_source=imdb_id "HTTP/1.1 200 OK"
+2025-08-29 10:22:33.606 | INFO     | __init__.callHandlers:1744 - HTTP Request: GET https://api.themoviedb.org/3/search/movie?api_key=d438b9b85205a657f62e8d7ce74e4789&query=SRK&year=2018 "HTTP/1.1 200 OK"
